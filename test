@@ -1,0 +1,234 @@
+const express = require("express");
+const axios = require("axios");
+const http = require("http");
+const socketIo = require("socket.io");
+require("dotenv").config();
+
+const app = express();
+const server = http.createServer(app);
+const io = socketIo(server);
+
+let path = require('path');
+const mysql = require("mysql");
+const bodyParser = require('body-parser');
+
+
+const CLIENT_ID = "LZyZ8tx2G2uz35EHEL1vGvIQWngPkfOf";
+const CLIENT_SECRET = "lAIux0ztcWGxsRrmnWF58aS7CGSdvRmhVfe5oal3z7cxus6N9UeCtAmrWhDENwFa";
+const THING_ID = "4ef7652d-6128-4c73-a9e3-6a1da22f1ba6";
+const PROPERTY_ID = "d1754bec-2b4c-4ef9-9a54-87fff697fc25";
+
+let accessToken = "";
+let latestDistance = 0; 
+
+
+
+app.use(express.urlencoded({extended: true}));
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
+app.use(express.static(path.join(__dirname, "/public")));
+
+
+const connection = mysql.createConnection({
+   host: "localhost",
+   user: "root",
+   database: "Careflex",
+   password: "root"
+});
+
+
+
+app.get('/', (req,res) => {
+   res.render("Home.ejs");
+});
+
+
+app.get('/doctor/:id', async (req,res) => { 
+   res.render("doctorReport.ejs");
+});
+
+
+
+app.get('/login', async (req,res) => { 
+   res.render("login.ejs");
+});
+
+app.post('/login', async (req,res) => { 
+   let {email,password} = req.body;
+   console.log(req.body);
+
+   try{
+      connection.query("select * from patient where pat_email = ?",req.body.email,(err1,result1) => {
+              if(err1) throw err1;
+              
+              console.log(result1);
+              if((result1 != '') && (result1[0].pat_password == req.body.password))
+              {
+               console.log("patient");
+               res.redirect(`/patient/${result1[0].pat_key}`);
+              }else if(result1 == '')
+                 {
+               
+               connection.query("select * from doctors where email = ?",req.body.email,(err2,result2) => {
+                  if(err2) throw err2;
+                  if((result2 != "") && (result2[0].password == req.body.password))
+                     {
+                      res.redirect(`/doctor/${result2[0].doc_key}`);
+                     }else 
+                     {
+                        console.log("patient");
+                        res.redirect("/login");
+                     }
+                  })
+               }
+                     
+             
+           
+          })
+      } catch(err){
+          console.log(err);
+      }
+});
+
+
+
+
+app.get('/login/doctordata', async (req,res) => { 
+   res.render("signindoc.ejs");
+});
+
+app.post('/login/doctordata', async(req,res)=>
+{
+   let {pat_name,pat_phone,pat_qualify,pat_email,pat_pass,pat_cpass} = req.body;
+   console.log(req.body);
+   const doctorKey = generateDoctorKey();
+
+   try{
+   
+      await connection.query("insert into doctors(name,contact,qualification,email,password,doc_key) values (?,?,?,?,?,?)",[req.body.d_name,req.body.d_phone,req.body.d_qualify,req.body.d_email,req.body.d_pass,doctorKey],(err,result) => {
+              if(err) throw err;
+              // console.log(result);
+              res.redirect("/login");
+          })
+      } catch(err){
+          console.log(err);
+      }
+})
+
+app.get('/login/patientdata', async (req,res) => { 
+   res.render("signinpat.ejs");
+});
+
+
+app.post('/login/patientdata', async(req,res) =>
+{
+   let {pat_name,pat_phone,pat_email,pat_pass,d_cpass} = req.body;
+   console.log(req.body);
+
+   let pat_key = Math.floor(10000000 + Math.random() * 90000000);
+
+   try{
+      connection.query("select * from doctors where doc_key = ?",d_cpass,(err1,result1) => {
+         if(err1) throw err1;
+              console.log(result1[0].name);
+       connection.query("insert into patient(pat_name,pat_contact,pat_email,pat_password,pat_doc_key,pat_doc_name,pat_key) values (?,?,?,?,?,?,?)",[req.body.pat_name,req.body.pat_phone,req.body.pat_email,req.body.pat_pass,req.body.d_cpass,result1[0].name,pat_key],(err2,result2) => {
+              if(err2) throw err2;
+              // console.log(result);
+              res.redirect("/login");
+          })
+         })
+      } catch(err){
+          console.log(err);
+      }
+})
+
+
+ 
+ // Handle WebSocket connections
+function generateDoctorKey() {
+   const characters = 'abcdefghijklmnopqrstuvwxyz0123456789';
+   const keyLength = 12;
+   let doctorKey = '';
+   for (let i = 0; i < keyLength; i++) {
+       const randomIndex = Math.floor(Math.random() * characters.length);
+       doctorKey += characters[randomIndex];
+   }
+   return doctorKey;
+}
+
+
+io.on("connection", (socket) => {
+   console.log("A user connected");
+
+   socket.emit("distanceUpdate", latestDistance);
+
+   socket.on("disconnect", () => {
+     console.log("A user disconnected");
+   });
+});
+
+
+
+// Generate a random doctor key
+function generateDoctorKey() {
+   const characters = 'abcdefghijklmnopqrstuvwxyz0123456789';
+   const keyLength = 12;
+   let doctorKey = '';
+   for (let i = 0; i < keyLength; i++) {
+       const randomIndex = Math.floor(Math.random() * characters.length);
+       doctorKey += characters[randomIndex];
+   }
+   return doctorKey;
+}
+
+// Fetch access token from Arduino API
+const getAccessToken = async () => {
+   try {
+     const response = await axios.post(
+       "https://api2.arduino.cc/iot/v1/clients/token",
+       new URLSearchParams({
+         grant_type: "client_credentials",
+         client_id: CLIENT_ID,
+         client_secret: CLIENT_SECRET,
+         audience: "https://api2.arduino.cc/iot",
+       })
+     );
+     accessToken = response.data.access_token;
+     console.log("New Access Token:", accessToken);
+   } catch (error) {
+     console.error("Error fetching token:", error.response?.data || error.message);
+   }
+ };
+
+// Fetch ultrasonic data every 5 seconds
+const fetchUltrasonicData = async () => {
+   try {
+     if (!accessToken) await getAccessToken();
+
+     const response = await axios.get(
+       `https://api2.arduino.cc/iot/v2/things/${THING_ID}/properties/${PROPERTY_ID}`,
+       { headers: { Authorization: `Bearer ${accessToken}` }}
+     );
+
+     latestDistance = response.data.last_value;
+     console.log("Ultrasonic Distance Updated:", latestDistance);
+
+     // Emit the updated distance to all connected clients
+     io.emit("distanceUpdate", latestDistance);
+   } catch (error) {
+     console.error("Error fetching ultrasonic data:", error.response?.data || error.message);
+   }
+ };
+
+// Routes for patient dashboard
+app.get('/patient/:id', async (req,res) => { 
+   res.render("patientdash.ejs",{ data: latestDistance });
+}); 
+
+// Fetch ultrasonic data and update every 5 seconds
+setInterval(fetchUltrasonicData, 5000);
+getAccessToken();
+setInterval(getAccessToken, 3500 * 1000);
+
+app.listen(5500);
+

@@ -1,0 +1,39 @@
+create database Careflex;
+use Careflex;
+
+CREATE TABLE doctors (
+    id INT AUTO_INCREMENT PRIMARY KEY, 
+    name VARCHAR(255) NOT NULL,        
+    contact BIGINT NOT NULL,         
+    qualification VARCHAR(255) NOT NULL, 
+    email VARCHAR(255) UNIQUE NOT NULL, 
+    password VARCHAR(255) NOT NULL,
+    doc_key VARCHAR(255) NOT NULL UNIQUE
+);
+
+CREATE TABLE patient(
+    pat_id INT AUTO_INCREMENT PRIMARY KEY, 
+    pat_name VARCHAR(255) NOT NULL,        
+    pat_contact BIGINT NOT NULL,         
+    pat_email VARCHAR(255) UNIQUE NOT NULL, 
+    pat_password VARCHAR(255) NOT NULL,
+    pat_doc_key VARCHAR(255) NOT NULL,
+    pat_doc_name VARCHAR(255) NOT NULL,
+    pat_key INT NOT NULL UNIQUE
+);
+CREATE TABLE Bio (
+   id INT,
+   biodata BIGINT,
+   dateandtime TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+
+drop table doctors;
+drop table patient;
+drop table Bio;
+
+
+select * from doctors;
+select * from patient;
+select * from Bio;

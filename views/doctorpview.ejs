@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CareFlex - Health Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+      :root {
+    --primary-color: #2B594D;
+    --success-color: #22C55E;
+    --border-color: #e5e7eb;
+    --card-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    --text-dark: #111827;
+    --text-muted: #4B5563;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+body {
+    background-color: #f5f5f5;
+    min-height: 100vh;
+}
+
+/* Navbar Styles */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    background: white;
+    box-shadow: var(--card-shadow);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.logo {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.nav-links {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+}
+
+.nav-link {
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 0.95rem;
+}
+
+.login-btn {
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0.5rem 1.25rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.95rem;
+}
+
+/* Tab Styles */
+.tab-container {
+    background: white;
+    padding: 1rem 2rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--card-shadow);
+}
+
+.tabs {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 0.25rem;
+}
+
+.tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.tab {
+    padding: 0.5rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    background: none;
+    white-space: nowrap;
+    font-size: 0.95rem;
+}
+
+.tab.active {
+    background: #E8F5E9;
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
+/* Dashboard Layout */
+.dashboard-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem 2rem;
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.5rem;
+}
+
+/* Main Chart Section */
+.main-chart {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: var(--card-shadow);
+}
+
+.chart-header {
+    margin-bottom: 1.5rem;
+}
+
+.chart-title {
+    font-size: 1.75rem;
+    color: var(--text-dark);
+    margin-bottom: 0.75rem;
+}
+
+.chart-container {
+    background: black;
+    padding: 1.25rem;
+    border-radius: 8px;
+    height: 400px;
+    margin-bottom: 1rem;
+}
+
+/* Live Stats Panel */
+.live-stats {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: var(--card-shadow);
+    height: fit-content;
+}
+
+.metric-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.875rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.metric-row:last-child {
+    border-bottom: none;
+}
+
+.metric-label {
+    font-weight: 500;
+    color: var(--text-dark);
+}
+
+.metric-value {
+    color: var(--success-color);
+    font-weight: 500;
+}
+
+.success-message {
+    color: var(--success-color);
+    text-align: center;
+    margin-top: 1.25rem;
+    font-weight: 500;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border-color);
+}
+
+/* Information Sections */
+.info-section {
+    grid-column: 1 / -1;
+    background: white;
+    padding: 1.75rem;
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+    margin-bottom: 1.5rem;
+}
+
+.info-section h3 {
+    color: var(--text-dark);
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
+}
+
+.info-section p {
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: 1.25rem;
+}
+
+.info-section p:last-child {
+    margin-bottom: 0;
+}
+
+/* Content Section */
+.content {
+    grid-column: 1 / -1;
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: var(--card-shadow);
+    margin-bottom: 1.5rem;
+}
+
+.content p {
+    color: var(--text-muted);
+    line-height: 1.7;
+    margin-bottom: 1.5rem;
+}
+
+.factors-list {
+    margin-top: 2rem;
+}
+
+.factors-list h3 {
+    color: var(--text-dark);
+    font-size: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.factor {
+    margin-bottom: 2rem;
+    padding-left: 1.5rem;
+    border-left: 3px solid var(--primary-color);
+}
+
+.factor:last-child {
+    margin-bottom: 0;
+}
+
+.factor h4 {
+    color: var(--text-dark);
+    margin-bottom: 0.75rem;
+    font-size: 1.1rem;
+}
+
+.factor p {
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: 0;
+}
+
+/* History Button */
+.history-btn {
+    grid-column: 1 / -1;
+    justify-self: end;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 0.875rem 2.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+}
+
+.history-btn:hover {
+    background-color: #234a3f;
+}
+
+.floating-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: transform 0.3s ease;
+        }
+
+        .floating-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .floating-btn svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        /* Floating Chat Window */
+        .floating-chat {
+            position: fixed;
+            bottom: 5rem;
+            right: 2rem;
+            width: 350px;
+            height: 500px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            display: none;
+            flex-direction: column;
+            z-index: 999;
+            overflow: hidden;
+        }
+
+        .floating-chat.active {
+            display: flex;
+        }
+
+        .chat-close {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+
+        #chatbot img{
+            height: 100px;
+            width: 100px;
+            border-radius: 50%;
+            position: fixed;
+            top: 80vh;
+            left: 90vw;
+        }
+
+        /* Animation for chat window */
+        @keyframes slideIn {
+            from {
+                transform: translateY(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .floating-chat.active {
+            display: flex;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @media (max-width: 768px) {
+            .floating-chat {
+                width: calc(100% - 2rem);
+                height: 60vh;
+                right: 1rem;
+                left: 1rem;
+                bottom: 5rem;
+            }
+
+            .floating-btn {
+                bottom: 1rem;
+                right: 1rem;
+            }
+        }
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .dashboard-container {
+        padding: 0 1.5rem 1.5rem;
+    }
+}
+
+@media (max-width: 1024px) {
+    .dashboard-container {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .chart-container {
+        height: 350px;
+    }
+
+    .content {
+        padding: 1.75rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .navbar, .tab-container {
+        padding: 1rem;
+    }
+
+    .dashboard-container {
+        padding: 0 1rem 1rem;
+    }
+
+    .nav-links {
+        gap: 1rem;
+    }
+
+    .chart-container {
+        height: 300px;
+    }
+
+    .factor {
+        padding-left: 1rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .nav-link {
+        display: none;
+    }
+
+    .chart-title {
+        font-size: 1.5rem;
+    }
+
+    .main-chart, .live-stats, .info-section, .content {
+        padding: 1.25rem;
+    }
+
+    .factor {
+        padding-left: 0.75rem;
+    }
+
+    .history-btn {
+        width: 100%;
+        text-align: center;
+    }
+}
+
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">CareFlex</div>
+        <div class="nav-links">
+            <a href="#" class="nav-link">Home</a>
+            <a href="#" class="nav-link">Monitoring Dashboard</a>
+            <button class="login-btn">Login</button>
+        </div>
+    </nav>
+
+    <div class="tab-container">
+        <div class="tabs">
+            <button class="tab active">Recovery Rate</button>
+           
+        </div>
+    </div>
+
+    <div class="dashboard-container">
+        <div class="main-chart">
+            <div class="chart-header">
+                <h2 class="chart-title">Recovery Rate</h2>
+                <h3 id="status"></h3>
+                <p>Value: <span id="value"></span></p>
+            </div>
+            <div class="chart-container">
+                <canvas id="myChart"></canvas>
+            </div>
+        </div>
+
+        <div class="live-stats">
+            <div class="metric-row">
+                <span class="metric-label">Recovery Rate</span>
+                <span class="metric-value" id="RecoveryRate"><%= result.status %></span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Heart Rate</span>
+                <span class="metric-value">70 BPM</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">ECG</span>
+                <span class="metric-value" id="ecgdata"></span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">GSR</span>
+                <span class="metric-value" id="gsrdata"></span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Bio-Impeadance</span>
+                <span class="metric-value" id="biodata"></span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Blood Pressure</span>
+                <span class="metric-value">80 mmHg</span>
+            </div>
+            <p class="success-message">Everything Looks great...!! Have a Healthy Day</p>
+        </div>
+
+        <div class="info-section">
+            <h3>Conclusion</h3>
+            <p id="Recommand"><%= result.message %></p>
+            <h3>Suggestion</h3>
+            <p>Eat Healthy food like <span style="color: var(--success-color)">leafy Vegetables</span> for faster recovery</p>
+        </div>
+
+        <div class="content">
+            <p>The recovery rate measures how effectively the body restores itself after stress, illness, or physical exertion. It reflects factors like heart rate variability, sleep quality, and stress levels. A higher recovery rate indicates improved resilience and readiness, while a lower rate suggests the need for rest, hydration, or medical attention.</p>
+            
+            <div class="factors-list">
+                <h3>After a C-section surgery, recovery can be enhanced by focusing on these factors:</h3>
+                <div class="factor">
+                    <h4>Rest and Sleep</h4>
+                    <p>Prioritize rest, as your body needs time to heal. Sleep when the baby sleeps to balance rest and care.</p>
+                </div>
+                <!-- Add other factors as needed -->
+            </div>
+        </div>
+
+        <div id="chatbot"><a href='/patient/<%- id %>/chatbot'><img src="/images/chatbot2.png" alt="" ></a></div>
+
+        <button class="history-btn" onclick="window.location.href='/patient/<%= id %>/report'">Reports</button>
+
+    </div>
+
+    <script>
+        // Chart Configuration
+        const data = {
+            labels: [],
+            datasets: [{
+                label: 'BioZ Signal',
+                data: [],
+                borderColor: 'rgb(0, 255, 0)',
+                backgroundColor: 'rgba(0, 255, 0, 0.1)',
+                tension: 0.1,
+                pointRadius: 0,
+                borderWidth: 1.5,
+            }]
+        };
+
+        const config = {
+            type: 'line',
+            data: data,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 0
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: {
+                            color: 'white'
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        },
+                        ticks: {
+                            color: 'white'
+                        },
+                        min: 499000,
+                        max: 500500
+                    },
+                    x: {
+                        grid: {
+                            color: 'rgba(255, 255, 255, 0.1)'
+                        },
+                        ticks: {
+                            color: 'white',
+                            maxTicksLimit: 7
+                        }
+                    }
+                }
+            }
+        };
+
+        const ctx = document.getElementById('myChart').getContext('2d');
+        const myChart = new Chart(ctx, config);
+
+        const socket = io();
+        socket.on("distanceUpdate", (maindata) => {
+
+            const  ecgdata  = maindata.ecgdata;
+            let Biodata = maindata.latestDistance;
+            let gsrdata = maindata.gsrdata;
+
+
+            // console.log('Biodata:', Biodata);
+            // console.log('ECG Data:', ecgdata);
+            console.log('GSR Data:', gsrdata);
+
+
+            const statusElement = document.getElementById("status");
+            const valueElement = document.getElementById("value");
+
+            // console.log("New Value = ", Biodata);
+
+            statusElement.innerHTML = Biodata === 0 ? "Acquiring Signal..." : "Monitoring";
+            valueElement.textContent = Biodata;
+
+            if (ecgdata >= 400000 && ecgdata <600000) {
+                document.querySelector("#ecgdata").textContent = "Normal";
+            } else if (ecgdata >= 600000 && ecgdata <800000) {
+                document.querySelector("#ecgdata").textContent = "Consult";
+            } else if(ecgdata < 800000){
+                document.querySelector("#ecgdata").textContent = "Worst";
+            }
+
+            if (Biodata >= 499990) {
+                document.querySelector("#biodata").textContent = "Normal";
+                // document.querySelector("#RecoveryRate").textContent = 'Normal';
+                // document.querySelector("#Recommand").textContent = 'EveryThing is Good! Follow Regular routine';
+
+            } else if (Biodata >= 510000) {
+                document.querySelector("#biodata").textContent = "Consult";
+                // document.querySelector("#RecoveryRate").textContent = 'Critical';
+                // document.querySelector("#Recommand").textContent = 'Need to visit Doctor';
+
+            } 
+
+            if (gsrdata >= 200 && gsrdata <500) {
+                document.querySelector("#gsrdata").textContent = "No pain";
+            } else if (gsrdata >= 500 && gsrdata <700) {
+                document.querySelector("#gsrdata").textContent = "MIld Pain";
+            } else if(gsrdata >= 700 && gsrdata <1023){
+                document.querySelector("#gsrdata").textContent = "Worst";
+            }
+            // Update chart data
+            if (data.labels.length >= 200) {
+                data.labels.shift();
+                data.datasets[0].data.shift();
+            }
+
+            data.labels.push(new Date().toLocaleTimeString());
+            data.datasets[0].data.push(Biodata);
+
+            myChart.update('none'); // No animation for performance
+        });
+
+        // Simulated QRS-like BioZ waveform function
+        function simulateQRSWaveform() {
+            const baseValue = 500000;
+            const noise = 300;
+            let lastPeakTime = Date.now();
+
+            return function () {
+                const time = (Date.now() - lastPeakTime) / 1000; // Time in seconds since last peak
+                let qrsValue = baseValue; // Default baseline
+
+                // QRS Complex Simulation
+                if (time < 0.04) {
+                    qrsValue -= 8000; // Q wave (small dip)
+                } else if (time < 0.1) {
+                    qrsValue += 15000; // R wave (sharp peak)
+                } else if (time < 0.16) {
+                    qrsValue -= 5000; // S wave (small drop)
+                } else if (time < 0.8) {
+                    qrsValue = baseValue + Math.random() * 200; // Baseline fluctuations
+                } else {
+                    lastPeakTime = Date.now(); // Reset for next cycle
+                }
+
+                return qrsValue + (Math.random() - 0.5) * noise; // Add slight noise
+            };
+        }
+
+        // Start QRS waveform simulation
+        const getBioZValue = simulateQRSWaveform();
+        setInterval(() => {
+            const Biodata = getBioZValue();
+            socket.emit("distanceUpdate", Biodata);
+        }, 1000); // Smooth updates every 50ms
+
+
+        // Tab Functionality
+        const tabs = document.querySelectorAll('.tab');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelector('.tab.active').classList.remove('active');
+                tab.classList.add('active');
+            });
+        });
+
+        // Ensure chart remains responsive
+        window.addEventListener('resize', () => {
+            myChart.resize();
+        });
+    </script>
+</body>
+
+</html>
