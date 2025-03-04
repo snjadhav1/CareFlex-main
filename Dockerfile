@@ -17,4 +17,4 @@ COPY . .
 EXPOSE 5500
 
 # Command to run the application
-CMD ["npm", "start"]
+CMD ["nodemon app.js"]
